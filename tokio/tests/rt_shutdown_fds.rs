@@ -11,6 +11,10 @@ use tokio::runtime::{Builder, Runtime, RuntimeMetrics};
 
 const ROUNDS: usize = 50;
 
+/// Extra fds tolerated for process-wide activity unrelated to the runtimes. A
+/// leak of even one fd per runtime would exceed it.
+const SLACK: usize = 2;
+
 fn open_fds() -> usize {
     std::fs::read_dir("/proc/self/fd").unwrap().count()
 }
@@ -46,10 +50,8 @@ fn dropped_runtime_releases_fds_while_metrics_alive() {
             .unwrap()
     });
 
-    // A per-runtime leak shows up as at least ROUNDS extra fds; anything
-    // smaller is unrelated process-wide noise.
     assert!(
-        current < ROUNDS && multi < ROUNDS,
+        current <= SLACK && multi <= SLACK,
         "fds leaked over {ROUNDS} runtimes: current_thread {current}, multi_thread {multi}"
     );
 }
